@@ -64,13 +64,18 @@
 
 # go.d logs the full DSN when a check fails. The password goes to a pgpass
 # file so the DSN has none.
-- name: check that postgres DSNs with password key have no inline password
-  no_log: true
+- name: check that postgres jobs with password key have no inline password
   assert:
-    that: item.dsn is not match('^postgres(ql)?://[^/@]*:[^/@]*@')
-    fail_msg: 'netdata_postgres_jobs: remove the password from dsn of job {{ item.name }}'
+    that: netdata__postgres_inline_password_jobs | length == 0
+    fail_msg: >-
+      netdata_postgres_jobs: remove the password from dsn of
+      {{ netdata__postgres_inline_password_jobs | join(', ') }}
     quiet: true
-  loop: '{{ netdata_postgres_jobs | selectattr("password", "defined") | list }}'
+  vars:
+    netdata__postgres_inline_password_jobs: >-
+      {{ netdata_postgres_jobs | selectattr('password', 'defined')
+      | selectattr('dsn', 'match', '^postgres(ql)?://[^/@]*:[^/@]*@')
+      | map(attribute='name') | list }}
   when: netdata_postgres_enabled | bool
 
 - name: create postgres pgpass directory
