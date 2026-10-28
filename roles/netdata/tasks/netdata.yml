@@ -9,13 +9,24 @@
     name: netdata
     state: present
 
-- name: create log directory
-  file:
-    path: /var/log/netdata
-    state: directory
-    owner: netdata
-    group: netdata
-    mode: '2750'
+# With docker integration the access log is off and netdata logs to the journal
+# (journalctl --namespace=netdata). Files left in /var/log/netdata are old.
+- name: remove old netdata log files
+  when: netdata_docker_integration
+  block:
+    - name: find old netdata log files
+      find:
+        paths: /var/log/netdata
+        file_type: file
+      register: netdata__register_old_logs
+
+    - name: remove old netdata log files
+      file:
+        path: '{{ item.path }}'
+        state: absent
+      loop: '{{ netdata__register_old_logs.files }}'
+      loop_control:
+        label: '{{ item.path }}'
 
 - name: add user netdata to docker group
   user:
